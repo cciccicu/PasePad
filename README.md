@@ -1,6 +1,9 @@
 # PasePad云剪贴板应用
 
+⬆这不是一个拼写错误，Paste -> Pase (Remove"T") Not Only Text
+
 PasePad是一个基于Node.js和SQLite的云剪贴板应用，支持多种内容类型的存储和管理。
+
 由ccicc设计和编写，部分代码由AI完成，此文档由AI完成
 
 ![主页面](./docs/mainpage.png)
