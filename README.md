@@ -1,6 +1,7 @@
 # PasePad云剪贴板应用
 
-PasePad是一个基于Node.js和SQLite的云剪贴板应用，支持多种内容类型的存储和管理。版本1.1.0增加了更多功能和配置选项。
+PasePad是一个基于Node.js和SQLite的云剪贴板应用，支持多种内容类型的存储和管理。
+由ccicc设计和编写，部分代码由AI完成，此文档由AI完成
 
 ![主页面](./docs/mainpage.png)
 ![文本预览](./docs/text.png)
@@ -10,6 +11,7 @@ PasePad是一个基于Node.js和SQLite的云剪贴板应用，支持多种内容
 ![管理页面](./docs/admin.png)
 ![上传队列](./docs/uploadque.png)
 ![响应式设计](./docs/responsive.png)
+
 ## 功能特点
 
 - **多种内容类型支持**：
