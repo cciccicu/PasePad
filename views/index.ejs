@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云剪贴板</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/node_modules/vditor/dist/index.css">
+  <script src="/node_modules/vditor/dist/index.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>云剪贴板</h1>
+      <% if (authenticated) { %>
+      <div class="auth-status authenticated">已认证 ✓</div>
+      <div class="admin-link">
+        <a href="/admin" class="btn btn-admin">管理页面</a>
+      </div>
+      <% } else { %>
+      <div class="auth-status">未认证</div>
+      <% } %>
+      
+      <!-- 移动端标题栏菜单 -->
+      <div class="mobile-header-menu">
+        <div class="mobile-header-menu-button" onclick="toggleHeaderMenu()">
+          <span class="menu-icon">≡</span>
+        </div>
+        <div class="mobile-header-dropdown" id="headerMenu">
+          <% if (authenticated) { %>
+          <a href="/admin"><span class="menu-icon">⚙</span> 管理页面</a>
+          <% } %>
+          <button onclick="showModal('markdownModal')"><span class="menu-icon">📝</span> 新建 Markdown</button>
+          <button onclick="showModal('textModal')"><span class="menu-icon">📄</span> 新建文本</button>
+          <button onclick="showModal('linkModal')"><span class="menu-icon">🔗</span> 新建链接</button>
+          <button onclick="showModal('fileModal')"><span class="menu-icon">📁</span> 上传文件</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="clipboard-list">
+        <% if (items && items.length > 0) { %>
+          <% items.forEach(item => { %>
+            <div class="clipboard-item <%= item.type %>" data-id="<%= item.id %>" data-type="<%= item.type %>">
+              <div class="item-header">
+                <div class="item-title-container">
+                  <span class="item-type-badge <%= item.type %>">
+                    <% if (item.type === 'markdown') { %>Markdown<% } %>
+                    <% if (item.type === 'text') { %>文本<% } %>
+                    <% if (item.type === 'link') { %>链接<% } %>
+                    <% if (item.type === 'file') { %>文件<% } %>
+                  </span>
+                  <h3 class="item-title"><%= item.title %></h3>
+                  <span class="item-date"><%= new Date(item.created_at).toLocaleString() %></span>
+                </div>
+                
+                <div class="item-actions">
+                  <% if (item.type === 'markdown' || item.type === 'text') { %>
+                    <button class="btn-copy" onclick="copyContent('<%= item.id %>')">复制</button>
+                    <button class="btn-share" onclick="shareItem('<%= item.id %>')">分享</button>
+                    <% if (authenticated) { %>
+                    <button class="btn-edit" onclick="editItem('<%= item.id %>')">编辑</button>
+                    <button class="btn-delete" onclick="deleteItem('<%= item.id %>')">删除</button>
+                    <% } %>
+                  <% } else if (item.type === 'link') { %>
+                    <button class="btn-copy" onclick="copyContent('<%= item.id %>')">复制</button>
+                    <button class="btn-share" onclick="shareItem('<%= item.id %>')">分享</button>
+                    <% if (authenticated) { %>
+                    <button class="btn-delete" onclick="deleteItem('<%= item.id %>')">删除</button>
+                    <% } %>
+                  <% } else if (item.type === 'file') { %>
+                    <button class="btn-copy" onclick="copyFileLink('<%= item.id %>')">复制链接</button>
+                    <button class="btn-share" onclick="shareItem('<%= item.id %>')">分享</button>
+                    <button class="btn-info" onclick="showFileInfo('<%= item.id %>')">信息</button>
+                    <% if (authenticated) { %>
+                    <button class="btn-delete" onclick="deleteItem('<%= item.id %>')">删除</button>
+                    <% } %>
+                  <% } %>
+              </div>
+              
+              <!-- 移动端三点菜单按钮 -->
+              <div class="mobile-menu-button" onclick="toggleMobileMenu('<%= item.id %>', event)">
+                <span class="menu-icon">⋮</span>
+              </div>
+              
+              <!-- 移动端操作菜单 -->
+              <div class="mobile-action-menu" id="mobileMenu<%= item.id %>">
+                <!-- 日期信息显示在菜单顶部 -->
+                <div class="mobile-menu-date"><span class="menu-icon">🕒</span> <%= new Date(item.created_at).toLocaleString() %></div>
+                
+                <% if (item.type === 'markdown' || item.type === 'text') { %>
+                  <button onclick="copyContent('<%= item.id %>')"><span class="menu-icon">📋</span> 复制</button>
+                  <button onclick="shareItem('<%= item.id %>')"><span class="menu-icon">🔗</span> 分享</button>
+                  <% if (authenticated) { %>
+                  <button onclick="editItem('<%= item.id %>')"><span class="menu-icon">✏️</span> 编辑</button>
+                  <button onclick="deleteItem('<%= item.id %>')"><span class="menu-icon">🗑️</span> 删除</button>
+                  <% } %>
+                <% } else if (item.type === 'link') { %>
+                  <button onclick="copyContent('<%= item.id %>')"><span class="menu-icon">📋</span> 复制</button>
+                  <button onclick="shareItem('<%= item.id %>')"><span class="menu-icon">🔗</span> 分享</button>
+                  <% if (authenticated) { %>
+                  <button onclick="deleteItem('<%= item.id %>')"><span class="menu-icon">🗑️</span> 删除</button>
+                  <% } %>
+                <% } else if (item.type === 'file') { %>
+                  <button onclick="copyFileLink('<%= item.id %>')"><span class="menu-icon">📋</span> 复制链接</button>
+                  <button onclick="shareItem('<%= item.id %>')"><span class="menu-icon">🔗</span> 分享</button>
+                  <button onclick="showFileInfo('<%= item.id %>')"><span class="menu-icon">ℹ️</span> 信息</button>
+                  <% if (authenticated) { %>
+                  <button onclick="deleteItem('<%= item.id %>')"><span class="menu-icon">🗑️</span> 删除</button>
+                  <% } %>
+                <% } %>
+              </div>
+              </div>
+              
+              <% if (item.type === 'markdown') { %>
+                <div class="item-preview markdown-preview" style="display: none;">
+                  <div class="vditor-preview"></div>
+                </div>
+              <% } else if (item.type === 'text') { %>
+                <div class="item-preview text-preview" style="display: none;">
+                  <pre><%= item.content %></pre>
+                </div>
+              <% } %>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <div class="empty-state">
+            <p>剪贴板为空，请添加新内容</p>
+          </div>
+        <% } %>
+      </div>
+    </main>
+
+    <!-- Markdown 模态框 -->
+    <div id="markdownModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('markdownModal')">&times;</span>
+        <h2>新建 Markdown</h2>
+        <form action="/create/markdown" method="post">
+          <div class="form-group">
+            <label for="markdown-title">标题</label>
+            <input type="text" id="markdown-title" name="title" required>
+          </div>
+          <div class="form-group">
+            <label for="markdown-content">内容</label>
+            <div id="vditor" class="vditor"></div>
+            <input type="hidden" id="markdown-content" name="content">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn" onclick="closeModal('markdownModal')">取消</button>
+            <button type="submit" class="btn btn-primary" onclick="submitMarkdown()">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 纯文本模态框 -->
+    <div id="textModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('textModal')">&times;</span>
+        <h2>新建纯文本</h2>
+        <form action="/create/text" method="post">
+          <div class="form-group">
+            <label for="text-title">标题</label>
+            <input type="text" id="text-title" name="title" required>
+          </div>
+          <div class="form-group">
+            <label for="text-content">内容</label>
+            <textarea id="text-content" name="content" rows="10" required></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn" onclick="closeModal('textModal')">取消</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 链接模态框 -->
+    <div id="linkModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('linkModal')">&times;</span>
+        <h2>新建链接</h2>
+        <form action="/create/link" method="post">
+          <div class="form-group">
+            <label for="link-title">标题</label>
+            <input type="text" id="link-title" name="title" required>
+          </div>
+          <div class="form-group">
+            <label for="link-content">URL</label>
+            <input type="url" id="link-content" name="content" required>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn" onclick="closeModal('linkModal')">取消</button>
+            <button type="submit" class="btn btn-primary">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 文件模态框 -->
+    <div id="fileModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('fileModal')">&times;</span>
+        <h2>新建文件</h2>
+        <form action="/create/file" method="post" enctype="multipart/form-data">
+          <div class="form-group">
+            <label for="file-title">标题</label>
+            <input type="text" id="file-title" name="title" required>
+            <small class="form-text">将自动使用文件名作为标题</small>
+          </div>
+          <div class="form-group">
+            <label for="file-upload">文件</label>
+            <input type="file" id="file-upload" name="file" required>
+          </div>
+          <input type="hidden" id="original-filename" name="original_filename" value="">
+          <div class="form-actions">
+            <button type="button" class="btn" onclick="closeModal('fileModal')">取消</button>
+            <button type="submit" class="btn btn-primary">上传</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div id="editModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal('editModal')">&times;</span>
+        <h2>编辑内容</h2>
+        <form id="editForm" action="/update/0" method="post">
+          <div class="form-group">
+            <label for="edit-title">标题</label>
+            <input type="text" id="edit-title" name="title" required>
+          </div>
+          <div class="form-group" id="edit-markdown-container" style="display: none;">
+            <label for="edit-markdown">内容</label>
+            <div id="edit-vditor" class="vditor"></div>
+          </div>
+          <div class="form-group" id="edit-text-container" style="display: none;">
+            <label for="edit-text">内容</label>
+            <textarea id="edit-text" rows="10" required></textarea>
+          </div>
+          <!-- 统一内容字段 -->
+          <input type="hidden" id="edit-content" name="content">
+
+          <div class="form-actions">
+            <button type="button" class="btn" onclick="closeModal('editModal')">取消</button>
+            <button type="submit" class="btn btn-primary" id="edit-submit-btn">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- 文件信息模态框 -->
+  <div id="fileInfoModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('fileInfoModal')">&times;</span>
+      <h2>文件信息</h2>
+      <div class="file-info-container">
+        <div class="file-properties">
+          <h3>属性信息</h3>
+          <div id="fileProperties"></div>
+        </div>
+        <div class="file-preview-container">
+          <h3>文件预览</h3>
+          <div id="filePreview"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 悬浮按钮 -->
+  <div class="floating-buttons">
+    <button class="floating-btn btn-file" onclick="showModal('fileModal')" title="新建文件">
+      <span>文件</span>
+    </button>
+    <button class="floating-btn btn-link" onclick="showModal('linkModal')" title="新建链接">
+      <span>链接</span>
+    </button>
+    <button class="floating-btn btn-text" onclick="showModal('textModal')" title="新建纯文本">
+      <span>文本</span>
+    </button>
+    <button class="floating-btn btn-markdown" onclick="showModal('markdownModal')" title="新建Markdown">
+      <span>MD</span>
+    </button>
+  </div>
+  
+  <!-- 上传队列悬浮球和面板 -->
+  <div class="upload-float-ball" id="uploadFloatBall" style="display: none;">
+    <span>📤</span>
+    <div class="badge" id="uploadBadge">0</div>
+  </div>
+  <div class="upload-queue-panel" id="uploadQueuePanel">
+    <h3>上传队列</h3>
+    <div id="uploadItems"></div>
+  </div>
+  
+  <!-- Toast通知系统 -->
+  <div id="toast-container" class="toast-container"></div>
+  
+  <!-- 确认对话框 -->
+  <div id="confirm-dialog" class="modal confirm-dialog">
+    <div class="modal-content confirm-content">
+      <h3 id="confirm-message">确认操作</h3>
+      <div class="confirm-actions">
+        <button id="confirm-cancel" class="btn">取消</button>
+        <button id="confirm-ok" class="btn btn-primary">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 全局变量
+    let vditor = null;
+    let editVditor = null;
+    let uploadQueue = [];
+    let activeUploads = 0;
+    
+    // 分享项目
+    function shareItem(id) {
+      const shareUrl = window.location.origin + '/share/' + id;
+      
+      // 尝试使用现代Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl)
+          .then(() => showToast('分享链接已复制到剪贴板', 'success'))
+          .catch(err => {
+            // 如果Clipboard API失败，使用备选方案
+            fallbackCopy(shareUrl);
+          });
+      } else {
+        // 如果Clipboard API不可用，使用备选方案
+        fallbackCopy(shareUrl);
+      }
+    }
+    
+    // 切换移动端项目操作菜单
+    function toggleMobileMenu(itemId, event) {
+      // 先关闭所有其他菜单
+      document.querySelectorAll('.mobile-action-menu.show').forEach(menu => {
+        if (menu.id !== `mobileMenu${itemId}`) {
+          menu.classList.remove('show');
+        }
+      });
+      
+      // 切换当前菜单
+      const menu = document.getElementById(`mobileMenu${itemId}`);
+      if (menu) {
+        // 获取点击按钮的位置
+        const button = event.currentTarget;
+        const buttonRect = button.getBoundingClientRect();
+        
+        // 计算菜单位置 - 默认显示在按钮附近
+        // 计算按钮中心点
+        const buttonCenterX = buttonRect.left + (buttonRect.width / 2);
+        const menuWidth = 200; // 估计的菜单宽度
+        
+        // 默认将菜单放在按钮右侧，但靠近按钮
+        let left = buttonRect.right - 10;
+        let top = buttonRect.top;
+        
+        // 检查是否会超出右侧边界
+        if (left + menuWidth > window.innerWidth) {
+          // 如果会超出右侧边界，则尝试将菜单居中显示在按钮下方
+          left = buttonCenterX - (menuWidth / 2);
+          top = buttonRect.bottom + 5;
+          
+          // 确保菜单不会超出左侧边界
+          if (left < 5) {
+            left = 5;
+          }
+          
+          // 确保菜单不会超出右侧边界
+          if (left + menuWidth > window.innerWidth - 5) {
+            left = window.innerWidth - menuWidth - 5;
+          }
+        }
+        
+        // 检查是否会超出底部边界
+        const menuHeight = menu.scrollHeight || 200; // 估计的菜单高度
+        if (top + menuHeight > window.innerHeight) {
+          // 如果会超出底部边界，则向上调整
+          top = Math.max(5, window.innerHeight - menuHeight - 5);
+        }
+        
+        // 设置菜单位置
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        
+        // 显示菜单
+        menu.classList.toggle('show');
+        event.stopPropagation(); // 阻止事件冒泡
+      }
+    }
+    
+    // 切换标题栏菜单
+    function toggleHeaderMenu() {
+      const menu = document.getElementById('headerMenu');
+      if (menu) {
+        menu.classList.toggle('show');
+        event.stopPropagation(); // 阻止事件冒泡
+      }
+    }
+    
+    // 初始化上传队列相关事件
+    document.addEventListener('DOMContentLoaded', function() {
+      // 为上传悬浮球添加点击事件
+      document.getElementById('uploadFloatBall').addEventListener('click', function() {
+        const panel = document.getElementById('uploadQueuePanel');
+        panel.classList.toggle('show');
+      });
+      
+      // 点击页面其他区域关闭所有移动端菜单
+      document.addEventListener('click', function(e) {
+        // 关闭项目操作菜单
+        if (!e.target.closest('.mobile-menu-button') && !e.target.closest('.mobile-action-menu')) {
+          document.querySelectorAll('.mobile-action-menu.show').forEach(menu => {
+            menu.classList.remove('show');
+          });
+        }
+        
+        // 关闭标题栏菜单
+        if (!e.target.closest('.mobile-header-menu-button') && !e.target.closest('.mobile-header-dropdown')) {
+          const headerMenu = document.getElementById('headerMenu');
+          if (headerMenu && headerMenu.classList.contains('show')) {
+            headerMenu.classList.remove('show');
+          }
+        }
+      });
+      
+      // 添加窗口大小改变事件处理，关闭所有菜单
+      window.addEventListener('resize', function() {
+        // 关闭所有操作菜单
+        document.querySelectorAll('.mobile-action-menu.show').forEach(menu => {
+          menu.classList.remove('show');
+        });
+        
+        // 关闭标题栏菜单
+        const headerMenu = document.getElementById('headerMenu');
+        if (headerMenu && headerMenu.classList.contains('show')) {
+          headerMenu.classList.remove('show');
+        }
+      });
+    });
+    
+    // Toast通知系统函数
+    function showToast(message, type = 'info', duration = 3000) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      
+      const container = document.getElementById('toast-container');
+      container.appendChild(toast);
+      
+      // 显示动画
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 10);
+      
+      // 自动关闭
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          container.removeChild(toast);
+        }, 300);
+      }, duration);
+    }
+    
+    // 确认对话框函数
+    function showConfirm(message, onConfirm) {
+      const dialog = document.getElementById('confirm-dialog');
+      const messageEl = document.getElementById('confirm-message');
+      const okButton = document.getElementById('confirm-ok');
+      const cancelButton = document.getElementById('confirm-cancel');
+      
+      // 设置消息
+      messageEl.textContent = message;
+      
+      // 显示对话框
+      dialog.style.display = 'block';
+      
+      // 清除之前的事件监听器
+      const newOkButton = okButton.cloneNode(true);
+      const newCancelButton = cancelButton.cloneNode(true);
+      okButton.parentNode.replaceChild(newOkButton, okButton);
+      cancelButton.parentNode.replaceChild(newCancelButton, cancelButton);
+      
+      // 添加新的事件监听器
+      newOkButton.addEventListener('click', function() {
+        dialog.style.display = 'none';
+        if (typeof onConfirm === 'function') {
+          onConfirm();
+        }
+      });
+      
+      newCancelButton.addEventListener('click', function() {
+        dialog.style.display = 'none';
+      });
+    }
+    
+    // 初始化页面
+    document.addEventListener('DOMContentLoaded', function() {
+      // 为编辑表单添加提交事件
+      document.getElementById('edit-submit-btn').addEventListener('click', submitEdit);
+      // 初始化Markdown编辑器
+      vditor = new Vditor("vditor", {
+        height: 360,
+        mode: 'wysiwyg',
+        placeholder: '请输入Markdown内容...',
+        cache: {
+          enable: true
+        },
+        cdn: '/node_modules/vditor/',
+        upload: {
+          url: '/upload/vditor',
+          max: 10 * 1024 * 1024, // 5MB
+          accept: 'image/*,audio/*',
+          token: '',
+          withCredentials: false,
+          fieldName: 'file',
+          error: (msg) => {
+            console.error('图片上传失败:', msg);
+          }
+        }
+      });
+      // 添加全局拖拽上传功能
+      setupGlobalDragDrop();
+      // 添加全局粘贴上传功能
+      setupGlobalPaste();
+      
+      // 为每个剪贴板项目添加点击事件
+      document.querySelectorAll('.clipboard-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+          // 如果点击的是按钮，不执行预览操作
+          if (e.target.tagName === 'BUTTON') return;
+          
+          const id = this.dataset.id;
+          const type = this.dataset.type;
+          
+          if (type === 'markdown' || type === 'text') {
+            // 切换预览显示
+            const preview = this.querySelector('.item-preview');
+            if (preview.style.display === 'none') {
+              preview.style.display = 'block';
+              
+              // 如果是Markdown，渲染内容
+              if (type === 'markdown') {
+                fetch(`/item/${id}`)
+                  .then(response => response.json())
+                  .then(data => {
+                    const previewDiv = preview.querySelector('.vditor-preview');
+                    Vditor.preview(previewDiv, data.content, {
+                      cdn: '/node_modules/vditor',
+                      theme: 'light'
+                    });
+                  });
+              }
+            } else {
+              preview.style.display = 'none';
+            }
+          } else if (type === 'link') {
+            // 获取链接并跳转
+            fetch(`/item/${id}`)
+              .then(response => response.json())
+              .then(data => {
+                window.open(data.content, '_blank');
+              });
+          } else if (type === 'file') {
+            // 获取文件路径并下载
+            fetch(`/item/${id}`)
+              .then(response => response.json())
+              .then(data => {
+                if (data.file_path) {
+                  // 直接使用相对路径，服务器会处理下载
+                  window.location.href = data.file_path;
+                }
+              });
+          }
+        });
+      });
+    });
+    
+    // 显示模态框
+    function showModal(modalId) {
+      document.getElementById(modalId).style.display = 'block';
+    }
+    
+    // 关闭模态框
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+    
+    // 提交Markdown内容
+    function submitMarkdown() {
+      document.getElementById('markdown-content').value = vditor.getValue();
+      vditor.setValue('', true);
+    }
+    
+    // 复制内容
+    function copyContent(id) {
+      fetch(`/item/${id}`)
+        .then(response => response.json())
+        .then(data => {
+          // 尝试使用现代Clipboard API
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(data.content)
+              .then(() => showToast('内容已复制到剪贴板', 'success'))
+              .catch(err => {
+                // 如果Clipboard API失败，使用备选方案
+                fallbackCopy(data.content);
+              });
+          } else {
+            // 如果Clipboard API不可用，使用备选方案
+            fallbackCopy(data.content);
+          }
+        });
+    }
+    
+    // 复制内容的备选方案
+    function fallbackCopy(text) {
+      // 创建一个临时文本区域
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      
+      // 设置样式使其不可见
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      
+      // 选择文本并复制
+      textArea.focus();
+      textArea.select();
+      
+      let success = false;
+      try {
+        // 执行复制命令
+        success = document.execCommand('copy');
+      } catch (err) {
+        console.error('复制失败:', err);
+      }
+      
+      // 移除临时元素
+      document.body.removeChild(textArea);
+      
+      // 提示用户
+      if (success) {
+        showToast('内容已复制到剪贴板', 'success');
+      } else {
+        showToast('复制失败，请手动复制', 'error');
+      }
+    }
+    
+    // 复制文件链接
+    function copyFileLink(id) {
+      fetch(`/item/${id}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.file_path) {
+            // 确保使用正确的URL格式
+            const fileUrl = window.location.origin + '/' + data.file_path;
+            
+            // 尝试使用现代Clipboard API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(fileUrl)
+                .then(() => showToast('文件链接已复制到剪贴板', 'success'))
+                .catch(err => {
+                  // 如果Clipboard API失败，使用备选方案
+                  fallbackCopy(fileUrl);
+                });
+            } else {
+              // 如果Clipboard API不可用，使用备选方案
+              fallbackCopy(fileUrl);
+            }
+          }
+        });
+    }
+    
+    
+    // 编辑项目
+    function editItem(id) {
+      // 检查是否已认证
+      <% if (!authenticated) { %>
+        showToast('您需要先进行认证才能编辑内容', 'warning');
+        return;
+      <% } %>
+      
+      fetch(`/item/${id}`)
+        .then(response => response.json())
+        .then(data => {
+          // 设置表单action
+          document.getElementById('editForm').action = `/update/${id}`;
+          document.getElementById('edit-title').value = data.title;
+          
+          if (data.type === 'markdown') {
+            // 显示Markdown编辑器
+            document.getElementById('edit-markdown-container').style.display = 'block';
+            document.getElementById('edit-text-container').style.display = 'none';
+            
+            // 初始化编辑器
+            if (!editVditor) {
+              editVditor = new Vditor("edit-vditor", {
+                height: 360,
+                mode: 'wysiwyg',
+                cache: {
+                  enable: true
+                },
+                upload: {
+                  url: '/upload/vditor',
+                  max: 10 * 1024 * 1024, // 5MB
+                  accept: 'image/*,audio/*',
+                  token: '',
+                  withCredentials: false,
+                  fieldName: 'file',
+                  error: (msg) => {
+                    console.error('图片上传失败:', msg);
+                  }
+                },
+                after: () => {
+                  editVditor.setValue(data.content);
+                }
+              });
+            } else {
+              editVditor.setValue(data.content);
+            }
+          } else if (data.type === 'text') {
+            // 显示纯文本编辑器
+            document.getElementById('edit-markdown-container').style.display = 'none';
+            document.getElementById('edit-text-container').style.display = 'block';
+            document.getElementById('edit-text').value = data.content;
+          }
+          
+          // 显示编辑模态框
+          showModal('editModal');
+        });
+    }
+    
+    // 提交编辑
+    function submitEdit(event) {
+      // 阻止默认表单提交
+      event.preventDefault();
+      
+      if (document.getElementById('edit-markdown-container').style.display !== 'none') {
+        // Markdown编辑
+        const markdownContent = editVditor.getValue();
+        // 只设置统一的content字段
+        document.getElementById('edit-content').value = markdownContent;
+      } else if (document.getElementById('edit-text-container').style.display !== 'none') {
+        // 纯文本编辑
+        const textContent = document.getElementById('edit-text').value;
+        // 只设置统一的content字段
+        document.getElementById('edit-content').value = textContent;
+      }
+      
+      // 手动提交表单
+      document.getElementById('editForm').submit();
+    }
+    
+    // 删除项目
+    function deleteItem(id) {
+      // 检查是否已认证
+      <% if (!authenticated) { %>
+        showToast('您需要先进行认证才能删除内容', 'warning');
+        return;
+      <% } %>
+      
+      showConfirm('确定要删除这个项目吗？', function() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/delete/${id}`;
+        document.body.appendChild(form);
+        form.submit();
+      });
+    }
+    
+    // 显示文件信息
+    function showFileInfo(id) {
+      fetch(`/item/${id}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.file_path) {
+            // 获取文件信息
+            fetch(`/file-info/${id}`)
+              .then(response => response.json())
+              .then(fileInfo => {
+                // 填充属性信息
+                const propertiesDiv = document.getElementById('fileProperties');
+                let propertiesHTML = '<table>';
+                propertiesHTML += `<tr><td>文件名</td><td>${fileInfo.name}</td></tr>`;
+                propertiesHTML += `<tr><td>大小</td><td>${formatFileSize(fileInfo.size)}</td></tr>`;
+                propertiesHTML += `<tr><td>创建日期</td><td>${new Date(fileInfo.created).toLocaleString()}</td></tr>`;
+                propertiesHTML += `<tr><td>修改日期</td><td>${new Date(fileInfo.modified).toLocaleString()}</td></tr>`;
+                propertiesHTML += `<tr><td>类型</td><td>${fileInfo.type}</td></tr>`;
+                propertiesHTML += '</table>';
+                propertiesDiv.innerHTML = propertiesHTML;
+                
+                // 填充文件预览
+                const previewDiv = document.getElementById('filePreview');
+                const fileType = fileInfo.type.toLowerCase();
+                const filePath = '/' + data.file_path;
+                
+                if (fileType.startsWith('image/')) {
+                  // 图片预览
+                  previewDiv.innerHTML = `<img src="${filePath}" alt="${fileInfo.name}">`;
+                } else if (fileType.startsWith('video/')) {
+                  // 视频预览
+                  previewDiv.innerHTML = `<video controls><source src="${filePath}" type="${fileType}">您的浏览器不支持视频预览</video>`;
+                } else if (fileType.startsWith('audio/')) {
+                  // 音频预览
+                  previewDiv.innerHTML = `<audio controls><source src="${filePath}" type="${fileType}">您的浏览器不支持音频预览</audio>`;
+                } else if (isTextFile(fileType) && fileInfo.size < 10 * 1024 * 1024) {
+                  // 纯文本文件预览（小于1MB）
+                  previewDiv.innerHTML = '<div class="text-preview-loading">正在加载文本内容...</div>';
+                  
+                  // 获取文本内容
+                  fetch(`/text-preview/${id}`)
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error('无法加载文本内容');
+                      }
+                      return response.json();
+                    })
+                    .then(data => {
+                      // 创建预格式化文本区域
+                      const textContent = document.createElement('pre');
+                      textContent.className = 'text-preview-content';
+                      textContent.textContent = data.content;
+                      
+                      // 清空加载提示并添加文本内容
+                      previewDiv.innerHTML = '';
+                      previewDiv.appendChild(textContent);
+                    })
+                    .catch(error => {
+                      console.error('加载文本内容失败:', error);
+                      previewDiv.innerHTML = `<p class="text-preview-error">无法加载文本内容: ${error.message}</p>`;
+                    });
+                } else {
+                  // 不支持的文件类型
+                  previewDiv.innerHTML = '<p>暂不支持此类型文件预览</p>';
+                }
+                
+                // 显示模态框
+                showModal('fileInfoModal');
+              })
+              .catch(error => {
+                console.error('获取文件信息失败:', error);
+                showToast('获取文件信息失败', 'error');
+              });
+          }
+        });
+    }
+    
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // 判断是否为文本文件
+    function isTextFile(mimeType) {
+      const textTypes = [
+        'text/plain', 'text/xml', 'application/json', 'text/javascript', 
+        'text/x-python', 'text/x-java', 'text/x-c', 'text/x-c++', 'text/x-csharp',
+        'text/html', 'text/css', 'text/markdown', 'text/x-sh', 'text/x-sql',
+        'text/yaml'
+      ];
+      return textTypes.includes(mimeType);
+    }
+    
+    // 检查认证状态
+    function checkAuthStatus() {
+      // 如果URL中包含密码参数，刷新页面以移除URL中的密码
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('password')) {
+        // 延迟一秒后刷新页面，移除URL中的密码参数
+        setTimeout(() => {
+          window.location.href = window.location.pathname;
+        }, 1000);
+      }
+    }
+    
+    // 页面加载完成后执行
+    document.addEventListener('DOMContentLoaded', function() {
+      checkAuthStatus();
+    });
+    
+    // 上传队列管理
+    document.getElementById('uploadFloatBall').addEventListener('click', function() {
+      document.getElementById('uploadQueuePanel').classList.toggle('show');
+    });
+
+    // 监听文件上传表单打开
+    document.getElementById('file-upload').addEventListener('change', function() {
+      if (this.files.length > 0) {
+        // 自动填充文件名作为标题
+        const fileName = this.files[0].name;
+        document.getElementById('file-title').value = fileName;
+        // 保存原始文件名到隐藏字段
+        document.getElementById('original-filename').value = fileName;
+      }
+    });
+    
+    // 文件上传处理
+    document.querySelector('#fileModal form').addEventListener('submit', function(event) {
+      event.preventDefault();
+      
+      const title = document.getElementById('file-title').value;
+      const fileInput = document.getElementById('file-upload');
+      const formData = new FormData(this);
+      
+      if (!fileInput.files.length) {
+        showToast('请选择文件', 'warning');
+        return;
+      }
+      
+      const file = fileInput.files[0];
+      const uploadId = Date.now();
+      
+      // 添加到上传队列
+      addToUploadQueue(uploadId, title, file.name);
+      
+      // 确保上传悬浮球和面板显示
+      document.getElementById('uploadFloatBall').style.display = 'flex';
+      document.getElementById('uploadQueuePanel').classList.add('show');
+      
+      // 创建XHR请求以跟踪进度
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/create/file', true);
+      
+      // 进度事件
+      xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          updateUploadProgress(uploadId, percentComplete);
+        }
+      };
+      
+      // 完成事件
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          completeUpload(uploadId, '上传成功');
+          // 只有当所有上传都完成时才刷新页面
+          if (activeUploads === 0) {
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          }
+        } else {
+          completeUpload(uploadId, '上传失败');
+        }
+      };
+      
+      // 错误事件
+      xhr.onerror = function() {
+        completeUpload(uploadId, '上传失败');
+      };
+      
+      // 发送请求
+      xhr.send(formData);
+      
+      // 关闭模态框
+      closeModal('fileModal');
+    });
+    
+    // 设置全局拖拽上传
+    function setupGlobalDragDrop() {
+      const dropZone = document.body;
+      let dragCounter = 0; // 添加计数器跟踪拖拽状态
+      
+      // 阻止默认拖拽行为，使整个页面可以接收文件
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+      });
+      
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      // 添加一个全局拖拽提示元素
+      const dragIndicator = document.createElement('div');
+      dragIndicator.className = 'global-drag-indicator';
+      dragIndicator.innerHTML = '<div class="drag-content"><span>📁</span><p>释放文件以上传</p></div>';
+      document.body.appendChild(dragIndicator);
+      
+      // 使用计数器来处理拖拽状态，避免闪烁
+      dropZone.addEventListener('dragenter', function(e) {
+        dragCounter++;
+        highlight();
+      }, false);
+      
+      dropZone.addEventListener('dragleave', function(e) {
+        dragCounter--;
+        if (dragCounter === 0) {
+          unhighlight();
+        }
+      }, false);
+      
+      // 拖放时重置计数器并处理文件
+      dropZone.addEventListener('drop', function(e) {
+        dragCounter = 0;
+        unhighlight();
+        handleDrop(e);
+      }, false);
+      
+      function highlight() {
+        dragIndicator.classList.add('active');
+      }
+      
+      function unhighlight() {
+        dragIndicator.classList.remove('active');
+      }
+      
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+          handleFiles(files);
+        }
+      }
+    }
+
+    // 设置全局粘贴上传
+    function setupGlobalPaste() {
+      document.addEventListener('paste', function(e) {
+        // 检查是否在输入框中粘贴，如果是则不拦截
+        const activeElement = document.activeElement;
+        const isInput = activeElement.tagName === 'INPUT' || 
+                      activeElement.tagName === 'TEXTAREA' || 
+                      activeElement.isContentEditable;
+        
+        if (isInput) return;
+        
+        // 获取粘贴的文件
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        
+        let hasFiles = false;
+        
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].kind === 'file') {
+            const file = items[i].getAsFile();
+            hasFiles = true;
+            
+            // 创建文件数组以匹配handleFiles函数参数
+            const files = [file];
+            handleFiles(files);
+            break;
+          }
+        }
+        
+        if (hasFiles) {
+          showToast('正在处理粘贴的文件...', 'info');
+          e.preventDefault();
+        }
+      });
+    }
+
+    // 处理上传文件的通用函数
+    function handleFiles(files) {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const uploadId = Date.now() + i;
+        const fileName = file.name;
+        
+        // 添加到上传队列
+        addToUploadQueue(uploadId, fileName, fileName);
+        
+        // 显示上传UI
+        document.getElementById('uploadFloatBall').style.display = 'flex';
+        document.getElementById('uploadQueuePanel').classList.add('show');
+        
+        // 创建FormData并添加文件
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('title', fileName);
+        formData.append('original_filename', fileName);
+        
+        // 发送XHR请求
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/create/file', true);
+        
+        // 进度事件
+        xhr.upload.onprogress = function(e) {
+          if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            updateUploadProgress(uploadId, percentComplete);
+          }
+        };
+        
+        // 完成事件
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            completeUpload(uploadId, '上传成功');
+            showToast(`文件 "${fileName}" 上传成功`, 'success');
+            // 只有当所有上传都完成时才刷新页面
+            if (activeUploads === 0) {
+              setTimeout(() => {
+                window.location.reload();
+              }, 1000);
+            }
+          } else {
+            let errorMessage = '上传失败';
+            try {
+              const response = JSON.parse(xhr.responseText);
+              if (response.error) {
+                errorMessage = response.error;
+              }
+            } catch (e) {}
+            
+            completeUpload(uploadId, errorMessage);
+            showToast(`文件 "${fileName}" ${errorMessage}`, 'error');
+          }
+        };
+        
+        // 错误事件
+        xhr.onerror = function() {
+          completeUpload(uploadId, '网络错误或对象为文件夹');
+          showToast(`文件 "${fileName}" 上传失败：网络错误或对象为文件夹`, 'error');
+        };
+        
+        // 发送请求
+        xhr.send(formData);
+      }
+    }
+    
+    // 添加到上传队列
+    function addToUploadQueue(id, title, filename) {
+      const item = {
+        id: id,
+        title: title,
+        filename: filename,
+        progress: 0,
+        status: '上传中'
+      };
+      
+      uploadQueue.push(item);
+      activeUploads++;
+      
+      // 更新UI
+      updateUploadQueueUI();
+      const floatBall = document.getElementById('uploadFloatBall');
+      floatBall.style.display = 'flex';
+      document.getElementById('uploadBadge').textContent = activeUploads;
+      document.getElementById('uploadQueuePanel').classList.add('show');
+    }
+    
+    // 更新上传进度
+    function updateUploadProgress(id, progress) {
+      const item = uploadQueue.find(item => item.id === id);
+      if (item) {
+        item.progress = progress;
+        updateUploadQueueUI();
+      }
+    }
+    
+    // 完成上传
+    function completeUpload(id, status) {
+      const item = uploadQueue.find(item => item.id === id);
+      if (item) {
+        item.progress = 100;
+        item.status = status;
+        activeUploads--;
+        document.getElementById('uploadBadge').textContent = activeUploads;
+        
+        if (activeUploads === 0) {
+          setTimeout(() => {
+            document.getElementById('uploadFloatBall').style.display = 'none';
+            document.getElementById('uploadQueuePanel').classList.remove('show');
+          }, 3000);
+        }
+        
+        updateUploadQueueUI();
+      }
+    }
+    
+    // 更新上传队列UI
+    function updateUploadQueueUI() {
+      const container = document.getElementById('uploadItems');
+      container.innerHTML = '';
+      
+      uploadQueue.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'upload-item';
+        
+        const header = document.createElement('div');
+        header.className = 'upload-item-header';
+        
+        const title = document.createElement('div');
+        title.className = 'upload-item-title';
+        title.textContent = item.title || item.filename;
+        
+        const status = document.createElement('div');
+        status.className = 'upload-item-status';
+        status.textContent = item.status + ' ' + item.progress + '%';
+        
+        const progress = document.createElement('div');
+        progress.className = 'upload-progress';
+        
+        const progressBar = document.createElement('div');
+        progressBar.className = 'upload-progress-bar';
+        progressBar.style.width = item.progress + '%';
+        
+        progress.appendChild(progressBar);
+        header.appendChild(title);
+        header.appendChild(status);
+        itemEl.appendChild(header);
+        itemEl.appendChild(progress);
+        
+        container.appendChild(itemEl);
+      });
+    }
+    
+  </script>
+</body>
+</html>

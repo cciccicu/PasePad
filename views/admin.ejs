@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>云剪贴板 - 管理页面</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>云剪贴板 - 管理页面</h1>
+      <div class="auth-status authenticated">已认证 ✓</div>
+      <div class="nav-links">
+        <a href="/" class="btn">返回首页</a>
+      </div>
+    </header>
+
+    <main class="admin-container">
+      <!-- 密码配置 -->
+      <section class="admin-section">
+        <h2>认证配置</h2>
+        <form id="passwordForm" action="/admin/update-password" method="post">
+          <div class="form-row">
+            <label for="password">认证密码</label>
+            <input type="password" id="password" name="password" value="<%= config.auth.password %>" required>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">保存密码</button>
+          </div>
+        </form>
+      </section>
+      
+      <!-- 上传目录配置 -->
+      <section class="admin-section">
+        <h2>上传目录配置</h2>
+        <form id="uploadDirForm" action="/admin/update-upload-dirs" method="post">
+          <div class="form-row">
+            <label for="uploadDir">文件上传目录</label>
+            <input type="text" id="uploadDir" name="uploadDir" value="<%= config.upload.uploadDir %>" required>
+            <p class="path-note">支持相对路径(./uploads)或绝对路径(C:/uploads 或 /home/user/uploads)</p>
+          </div>
+          <div class="form-row">
+            <label for="vditoruploadsDir">Vditor上传目录</label>
+            <input type="text" id="vditoruploadsDir" name="vditoruploadsDir" value="<%= config.upload.vditoruploadsDir %>" required>
+            <p class="path-note">支持相对路径(./vditoruploads)或绝对路径(C:/vditoruploads 或 /home/user/vditoruploads)</p>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">保存目录配置</button>
+          </div>
+        </form>
+      </section>
+      
+      <!-- 文件同步 -->
+      <section class="admin-section">
+        <h2>文件同步</h2>
+        <form id="syncForm" action="/admin/sync-files" method="post">
+          <div class="sync-options">
+            <div class="sync-option">
+              <div class="form-row">
+                <label for="dbMissingFile">数据库中存在但文件不存在</label>
+                <select id="dbMissingFile" name="dbMissingFile">
+                  <option value="keep" <%= config.fileSync.dbMissingFile === 'keep' ? 'selected' : '' %>>不做处理</option>
+                  <option value="delete" <%= config.fileSync.dbMissingFile === 'delete' ? 'selected' : '' %>>删除数据库记录</option>
+                </select>
+              </div>
+            </div>
+            <div class="sync-option">
+              <div class="form-row">
+                <label for="fileMissingDb">文件存在但数据库中不存在</label>
+                <select id="fileMissingDb" name="fileMissingDb">
+                  <option value="keep" <%= config.fileSync.fileMissingDb === 'keep' ? 'selected' : '' %>>不做处理</option>
+                  <option value="add" <%= config.fileSync.fileMissingDb === 'add' ? 'selected' : '' %>>添加到数据库</option>
+                  <option value="delete" <%= config.fileSync.fileMissingDb === 'delete' ? 'selected' : '' %>>删除文件</option>
+                </select>
+              </div>
+            </div>
+            <div class="sync-option" id="txtConvertContainer" style="display: none;">
+              <div class="form-row">
+                <div class="checkbox-row">
+                  <input type="checkbox" id="convertTxtToText" name="convertTxtToText" <%= config.fileSync.convertTxtToText ? 'checked' : '' %>>
+                  <label for="convertTxtToText">将.txt文档转为文本剪贴板</label>
+                </div>
+                <div class="input-with-unit" id="txtMaxSizeContainer" style="display: none;">
+                  <label for="txtMaxSize">体积小于</label>
+                  <input type="number" id="txtMaxSize" name="txtMaxSize" value="<%= config.fileSync.txtMaxSize %>" min="1">
+                  <span class="unit">KB</span>
+                </div>
+              </div>
+            </div>
+            <div class="sync-option" id="mdConvertContainer" style="display: none;">
+              <div class="form-row">
+                <div class="checkbox-row">
+                  <input type="checkbox" id="convertMdToMarkdown" name="convertMdToMarkdown" <%= config.fileSync.convertMdToMarkdown ? 'checked' : '' %>>
+                  <label for="convertMdToMarkdown">将.md文档转为Markdown剪贴板</label>
+                </div>
+                <div class="input-with-unit" id="mdMaxSizeContainer" style="display: none;">
+                  <label for="mdMaxSize">体积小于</label>
+                  <input type="number" id="mdMaxSize" name="mdMaxSize" value="<%= config.fileSync.mdMaxSize %>" min="1">
+                  <span class="unit">KB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">执行同步</button>
+          </div>
+        </form>
+        <div id="syncResult" class="result-container"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast通知系统 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script>
+    // Toast通知系统函数
+    function showToast(message, type = 'info', duration = 3000) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      
+      const container = document.getElementById('toast-container');
+      container.appendChild(toast);
+      
+      // 显示动画
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 10);
+      
+      // 自动关闭
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          container.removeChild(toast);
+        }, 300);
+      }, duration);
+    }
+    
+    // 表单提交处理
+    document.addEventListener('DOMContentLoaded', function() {
+      // 密码表单
+      document.getElementById('passwordForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const password = document.getElementById('password').value;
+        
+        fetch('/admin/update-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showToast('密码更新成功', 'success');
+          } else {
+            showToast(data.error || '密码更新失败', 'error');
+          }
+        })
+        .catch(error => {
+          showToast('请求失败: ' + error, 'error');
+        });
+      });
+      
+      // 上传目录表单
+      document.getElementById('uploadDirForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const uploadDir = document.getElementById('uploadDir').value;
+        const vditoruploadsDir = document.getElementById('vditoruploadsDir').value;
+        
+        fetch('/admin/update-upload-dirs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ uploadDir, vditoruploadsDir })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            showToast('上传目录配置更新成功', 'success');
+          } else {
+            showToast(data.error || '上传目录配置更新失败', 'error');
+          }
+        })
+        .catch(error => {
+          showToast('请求失败: ' + error, 'error');
+        });
+      });
+      
+      // 控制复选框和文件大小输入框的显示与隐藏
+      function updateSizeInputVisibility() {
+        const fileMissingDb = document.getElementById('fileMissingDb').value;
+        const convertTxtChecked = document.getElementById('convertTxtToText').checked;
+        const convertMdChecked = document.getElementById('convertMdToMarkdown').checked;
+        const txtConvertContainer = document.getElementById('txtConvertContainer');
+        const mdConvertContainer = document.getElementById('mdConvertContainer');
+        const txtMaxSizeContainer = document.getElementById('txtMaxSizeContainer');
+        const mdMaxSizeContainer = document.getElementById('mdMaxSizeContainer');
+        const txtMaxSizeInput = document.getElementById('txtMaxSize');
+        const mdMaxSizeInput = document.getElementById('mdMaxSize');
+        
+        // 控制复选框容器的显示与隐藏
+        if (fileMissingDb === 'add') {
+          txtConvertContainer.style.display = 'block';
+          mdConvertContainer.style.display = 'block';
+        } else {
+          txtConvertContainer.style.display = 'none';
+          mdConvertContainer.style.display = 'none';
+          // 当不显示复选框时，确保输入框也不显示且非必填
+          txtMaxSizeContainer.style.display = 'none';
+          txtMaxSizeInput.required = false;
+          mdMaxSizeContainer.style.display = 'none';
+          mdMaxSizeInput.required = false;
+          return; // 不需要继续执行后面的代码
+        }
+        
+        // 控制TXT文件大小输入框
+        if (fileMissingDb === 'add' && convertTxtChecked) {
+          txtMaxSizeContainer.style.display = 'flex';
+          txtMaxSizeInput.required = true;
+        } else {
+          txtMaxSizeContainer.style.display = 'none';
+          txtMaxSizeInput.required = false;
+        }
+        
+        // 控制MD文件大小输入框
+        if (fileMissingDb === 'add' && convertMdChecked) {
+          mdMaxSizeContainer.style.display = 'flex';
+          mdMaxSizeInput.required = true;
+        } else {
+          mdMaxSizeContainer.style.display = 'none';
+          mdMaxSizeInput.required = false;
+        }
+      }
+      
+      // 添加事件监听器
+      document.getElementById('fileMissingDb').addEventListener('change', updateSizeInputVisibility);
+      document.getElementById('convertTxtToText').addEventListener('change', updateSizeInputVisibility);
+      document.getElementById('convertMdToMarkdown').addEventListener('change', updateSizeInputVisibility);
+      
+      // 页面加载时初始化显示状态
+      updateSizeInputVisibility();
+      
+      // 文件同步表单
+      document.getElementById('syncForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const dbMissingFile = document.getElementById('dbMissingFile').value;
+        const fileMissingDb = document.getElementById('fileMissingDb').value;
+        
+        // 获取复选框状态，确保即使未选中也传递值
+        const convertTxtCheckbox = document.getElementById('convertTxtToText');
+        const convertTxtToText = convertTxtCheckbox ? convertTxtCheckbox.checked : false;
+        
+        const txtMaxSize = document.getElementById('txtMaxSize').value || '1024';
+        
+        // 获取复选框状态，确保即使未选中也传递值
+        const convertMdCheckbox = document.getElementById('convertMdToMarkdown');
+        const convertMdToMarkdown = convertMdCheckbox ? convertMdCheckbox.checked : false;
+        
+        const mdMaxSize = document.getElementById('mdMaxSize').value || '1024';
+        const resultContainer = document.getElementById('syncResult');
+        
+        // 显示加载状态
+        resultContainer.style.display = 'block';
+        resultContainer.innerHTML = '正在同步文件，请稍候...';
+        
+        fetch('/admin/sync-files', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            dbMissingFile, 
+            fileMissingDb,
+            convertTxtToText,
+            txtMaxSize,
+            convertMdToMarkdown,
+            mdMaxSize
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            resultContainer.className = 'result-container result-success';
+            resultContainer.innerHTML = `
+              <h3>同步完成</h3>
+              <p>处理结果:</p>
+              <ul>
+                <li>删除的数据库记录: ${data.deletedRecords || 0}</li>
+                <li>添加的数据库记录: ${data.addedRecords || 0}</li>
+                <li>删除的文件: ${data.deletedFiles || 0}</li>
+                <li>转换的TXT文件: ${data.convertedTxtFiles || 0}</li>
+                <li>转换的MD文件: ${data.convertedMdFiles || 0}</li>
+              </ul>
+            `;
+            showToast('文件同步成功', 'success');
+          } else {
+            resultContainer.className = 'result-container result-error';
+            resultContainer.innerHTML = `<p>同步失败: ${data.error || '未知错误'}</p>`;
+            showToast(data.error || '文件同步失败', 'error');
+          }
+        })
+        .catch(error => {
+          resultContainer.className = 'result-container result-error';
+          resultContainer.innerHTML = `<p>请求失败: ${error}</p>`;
+          showToast('请求失败: ' + error, 'error');
+        });
+      });
+    });
+  </script>
+</body>
+</html>

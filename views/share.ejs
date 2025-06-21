@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>分享 - 云剪贴板</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/node_modules/vditor/dist/index.css">
+  <script src="/node_modules/vditor/dist/index.min.js"></script>
+</head>
+<body>
+  <div class="container share-container">
+    <header class="share-header">
+      <h1>云剪贴板 - 分享内容</h1>
+    </header>
+
+    <main>
+      <% if (item) { %>
+        <div class="share-item <%= item.type %>">
+          <div class="share-item-header">
+            <div class="item-title-container">
+              <span class="item-type-badge <%= item.type %>">
+                <% if (item.type === 'markdown') { %>Markdown<% } %>
+                <% if (item.type === 'text') { %>文本<% } %>
+                <% if (item.type === 'link') { %>链接<% } %>
+                <% if (item.type === 'file') { %>文件<% } %>
+              </span>
+              <h2 class="item-title"><%= item.title %></h2>
+              <span class="item-date"><%= new Date(item.created_at).toLocaleString() %></span>
+            </div>
+            
+            <div class="share-actions">
+              <% if (item.type === 'markdown' || item.type === 'text') { %>
+                <button class="btn-copy" onclick="copyContent()">复制内容</button>
+              <% } else if (item.type === 'link') { %>
+                <button class="btn-copy" onclick="copyContent()">复制链接</button>
+                <button class="btn-open" onclick="openLink()">打开链接</button>
+              <% } else if (item.type === 'file') { %>
+                <button class="btn-download" onclick="downloadFile()">下载文件</button>
+                <button class="btn-copy" onclick="copyFileLink()">复制链接</button>
+              <% } %>
+            </div>
+          </div>
+          
+          <div class="share-item-content">
+            <% if (item.type === 'markdown') { %>
+              <div class="markdown-preview">
+                <div id="vditor-preview" class="vditor-preview"></div>
+              </div>
+            <% } else if (item.type === 'text') { %>
+              <div class="text-preview">
+                <pre><%= item.content %></pre>
+              </div>
+            <% } else if (item.type === 'link') { %>
+              <div class="link-preview">
+                <a href="<%= item.content %>" target="_blank"><%= item.content %></a>
+              </div>
+            <% } else if (item.type === 'file') { %>
+              <div class="file-preview">
+                <div class="file-info">
+                  <p>文件名: <%= item.title %></p>
+                </div>
+                
+                <!-- 文件信息平铺区域 -->
+                <div id="fileInfoSection" class="file-info-section">
+                  <div class="file-info-container">
+                    <div class="file-properties">
+                      <h3>属性信息</h3>
+                      <div id="fileProperties">
+                        <p>正在加载文件信息...</p>
+                      </div>
+                    </div>
+                    <div class="file-preview-container">
+                      <h3>文件预览</h3>
+                      <div id="filePreview">
+                        <p>正在加载预览...</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% } else { %>
+        <div class="empty-state">
+          <p>分享内容不存在或已过期</p>
+          <a href="/" class="btn">返回首页</a>
+        </div>
+      <% } %>
+    </main>
+  </div>
+
+  <!-- Toast通知系统 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script>
+    // 初始化页面
+    document.addEventListener('DOMContentLoaded', function() {
+      // 如果是Markdown类型，渲染内容
+      <% if (item && item.type === 'markdown') { %>
+        const previewDiv = document.getElementById('vditor-preview');
+        // 使用JSON.stringify来正确处理所有特殊字符
+        const content = <%- JSON.stringify(item.content) %>;
+        Vditor.preview(previewDiv, content, {
+          cdn: '/node_modules/vditor',
+          theme: 'light',
+          markdown: {
+            toc: true,
+            mark: true,
+            footnotes: true,
+            autoSpace: true
+          }
+        });
+      <% } %>
+      
+      // 如果是文件类型，自动加载文件信息
+      <% if (item && item.type === 'file') { %>
+        loadFileInfo();
+      <% } %>
+    });
+    
+    // Toast通知系统函数
+    function showToast(message, type = 'info', duration = 3000) {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      
+      const container = document.getElementById('toast-container');
+      container.appendChild(toast);
+      
+      // 显示动画
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 10);
+      
+      // 自动关闭
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          container.removeChild(toast);
+        }, 300);
+      }, duration);
+    }
+    
+    // 复制内容
+    function copyContent() {
+      <% if (item && (item.type === 'markdown' || item.type === 'text' || item.type === 'link')) { %>
+        // 使用JSON.stringify来正确处理所有特殊字符
+        const content = <%- JSON.stringify(item.content) %>;
+        copyToClipboard(content);
+      <% } %>
+    }
+    
+    // 复制文件链接
+    function copyFileLink() {
+      <% if (item && item.type === 'file') { %>
+        const fileUrl = window.location.origin + '/<%= item.file_path %>';
+        copyToClipboard(fileUrl);
+      <% } %>
+    }
+    
+    // 打开链接
+    function openLink() {
+      <% if (item && item.type === 'link') { %>
+        window.open('<%= item.content %>', '_blank');
+      <% } %>
+    }
+    
+    // 下载文件
+    function downloadFile() {
+      <% if (item && item.type === 'file') { %>
+        window.location.href = '/<%= item.file_path %>';
+      <% } %>
+    }
+    
+    // 加载文件信息
+    function loadFileInfo() {
+      <% if (item && item.type === 'file') { %>
+        // 获取文件信息
+        fetch(`/file-info/<%= item.id %>`)
+          .then(response => response.json())
+          .then(fileInfo => {
+            // 填充属性信息
+            const propertiesDiv = document.getElementById('fileProperties');
+            let propertiesHTML = '<table>';
+            propertiesHTML += `<tr><td>文件名</td><td>${fileInfo.name}</td></tr>`;
+            propertiesHTML += `<tr><td>大小</td><td>${formatFileSize(fileInfo.size)}</td></tr>`;
+            propertiesHTML += `<tr><td>创建日期</td><td>${new Date(fileInfo.created).toLocaleString()}</td></tr>`;
+            propertiesHTML += `<tr><td>修改日期</td><td>${new Date(fileInfo.modified).toLocaleString()}</td></tr>`;
+            propertiesHTML += `<tr><td>类型</td><td>${fileInfo.type}</td></tr>`;
+            propertiesHTML += '</table>';
+            propertiesDiv.innerHTML = propertiesHTML;
+            
+            // 填充文件预览
+            const previewDiv = document.getElementById('filePreview');
+            const fileType = fileInfo.type.toLowerCase();
+            const filePath = '/<%= item.file_path %>';
+            
+            if (fileType.startsWith('image/')) {
+              // 图片预览
+              previewDiv.innerHTML = `<img src="${filePath}" alt="${fileInfo.name}">`;
+            } else if (fileType.startsWith('video/')) {
+              // 视频预览
+              previewDiv.innerHTML = `<video controls><source src="${filePath}" type="${fileType}">您的浏览器不支持视频预览</video>`;
+            } else if (fileType.startsWith('audio/')) {
+              // 音频预览
+              previewDiv.innerHTML = `<audio controls><source src="${filePath}" type="${fileType}">您的浏览器不支持音频预览</audio>`;
+            } else if (isTextFile(fileType) && fileInfo.size < 1024 * 1024) {
+              // 纯文本文件预览（小于1MB）
+              previewDiv.innerHTML = '<div class="text-preview-loading">正在加载文本内容...</div>';
+              
+              // 获取文本内容
+              fetch(`/text-preview/<%= item.id %>`)
+                .then(response => {
+                  if (!response.ok) {
+                    throw new Error('无法加载文本内容');
+                  }
+                  return response.json();
+                })
+                .then(data => {
+                  // 创建预格式化文本区域
+                  const textContent = document.createElement('pre');
+                  textContent.className = 'text-preview-content';
+                  textContent.textContent = data.content;
+                  
+                  // 清空加载提示并添加文本内容
+                  previewDiv.innerHTML = '';
+                  previewDiv.appendChild(textContent);
+                })
+                .catch(error => {
+                  console.error('加载文本内容失败:', error);
+                  previewDiv.innerHTML = `<p class="text-preview-error">无法加载文本内容: ${error.message}</p>`;
+                });
+            } else {
+              // 不支持的文件类型
+              previewDiv.innerHTML = '<p>暂不支持此类型文件预览</p>';
+            }
+          })
+          .catch(error => {
+            console.error('获取文件信息失败:', error);
+            showToast('获取文件信息失败', 'error');
+          });
+      <% } %>
+    }
+    
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // 判断是否为文本文件
+    function isTextFile(mimeType) {
+      return mimeType.startsWith('text/') || 
+             mimeType === 'application/json' || 
+             mimeType === 'application/xml' || 
+             mimeType === 'application/javascript';
+    }
+    
+    // 复制到剪贴板的通用函数
+    function copyToClipboard(text) {
+      // 尝试使用现代Clipboard API
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text)
+          .then(() => showToast('内容已复制到剪贴板', 'success'))
+          .catch(err => {
+            // 如果Clipboard API失败，使用备选方案
+            fallbackCopy(text);
+          });
+      } else {
+        // 如果Clipboard API不可用，使用备选方案
+        fallbackCopy(text);
+      }
+    }
+    
+    // 复制内容的备选方案
+    function fallbackCopy(text) {
+      // 创建一个临时文本区域
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      
+      // 设置样式使其不可见
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      
+      // 选择文本并复制
+      textArea.focus();
+      textArea.select();
+      
+      let success = false;
+      try {
+        // 执行复制命令
+        success = document.execCommand('copy');
+      } catch (err) {
+        console.error('复制失败:', err);
+      }
+      
+      // 移除临时元素
+      document.body.removeChild(textArea);
+      
+      // 提示用户
+      if (success) {
+        showToast('内容已复制到剪贴板', 'success');
+      } else {
+        showToast('复制失败，请手动复制', 'error');
+      }
+    }
+  </script>
+</body>
+</html>

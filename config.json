@@ -1,0 +1,17 @@
+{
+  "auth": {
+    "password": "PasePad"
+  },
+  "upload": {
+    "uploadDir": "./uploads",
+    "vditoruploadsDir": "./vditoruploads"
+  },
+  "fileSync": {
+    "dbMissingFile": "delete",
+    "fileMissingDb": "add",
+    "convertTxtToText": true,
+    "txtMaxSize": 1000,
+    "convertMdToMarkdown": true,
+    "mdMaxSize": 1000
+  }
+}
