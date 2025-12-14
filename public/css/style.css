@@ -28,18 +28,14 @@
   color: var(--text-color);
 }
 
-.form-row {
-  margin-bottom: var(--spacing-md);
-}
-
-.form-row label {
+.form-group label {
   display: block;
   margin-bottom: var(--spacing-xs);
   font-weight: bold;
   color: var(--text-color);
 }
 
-.form-row input, .form-row select {
+.form-group input, .form-group select {
   width: 100%;
   padding: var(--spacing-sm);
   border: 1px solid var(--border-color);
@@ -121,6 +117,33 @@
 
 .input-with-unit .unit {
   color: #666;
+}
+
+/* 复选框表单组样式 */
+.form-group.checkbox-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.form-group.checkbox-group input[type="checkbox"] {
+  margin-right: var(--spacing-sm);
+}
+
+.form-group.checkbox-group label {
+  margin-right: var(--spacing-sm);
+  margin-bottom: 0;
+  font-weight: normal;
+}
+
+.form-group.checkbox-group input[type="number"] {
+  width: 80px;
+  margin: 0 var(--spacing-sm);
+}
+
+.form-group.checkbox-group span {
+  color: var(--text-color);
 }
 
 :root {
@@ -269,7 +292,7 @@ h1 {
 
 .btn-edit {
   background-color: var(--warning-color);
-  color: var(--text-color);
+  color: white;
 }
 
 .btn-delete {
@@ -433,6 +456,7 @@ h1 {
 .share-item-content {
   margin-top: var(--spacing-lg);
   padding: var(--spacing-md);
+  max-height: calc(100vh - 220px);
 }
 
 .item-preview[style*="display: none"] {
@@ -671,6 +695,21 @@ h1 {
   max-width: var(--container-width);
   margin: 0 auto;
   padding: var(--spacing-lg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.share-container main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.share-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .share-header {
@@ -890,6 +929,53 @@ h1 {
 .file-preview-container .text-preview-error {
   padding: var(--spacing-md);
   color: var(--danger-color);
+  text-align: center;
+}
+
+/* Markdown预览样式调整 */
+.markdown-preview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.markdown-preview .vditor-preview {
+  flex: 1;
+  overflow: auto;
+}
+
+/* 链接预览样式 */
+.link-preview {
+  padding: var(--spacing-md);
+  background-color: var(--background-color);
+  border-radius: var(--small-radius);
+  margin-top: var(--spacing-sm);
+}
+
+.link-info h4 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-color);
+}
+
+.link-url {
+  padding: var(--spacing-md);
+  background-color: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: var(--small-radius);
+  margin-bottom: var(--spacing-md);
+  word-break: break-all;
+}
+
+.link-url a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.link-url a:hover {
+  text-decoration: underline;
+}
+
+.link-actions {
   text-align: center;
 }
 

@@ -21,7 +21,7 @@
       <section class="admin-section">
         <h2>认证配置</h2>
         <form id="passwordForm" action="/admin/update-password" method="post">
-          <div class="form-row">
+          <div class="form-group">
             <label for="password">认证密码</label>
             <input type="password" id="password" name="password" value="<%= config.auth.password %>" required>
           </div>
@@ -35,12 +35,12 @@
       <section class="admin-section">
         <h2>上传目录配置</h2>
         <form id="uploadDirForm" action="/admin/update-upload-dirs" method="post">
-          <div class="form-row">
+          <div class="form-group">
             <label for="uploadDir">文件上传目录</label>
             <input type="text" id="uploadDir" name="uploadDir" value="<%= config.upload.uploadDir %>" required>
             <p class="path-note">支持相对路径(./uploads)或绝对路径(C:/uploads 或 /home/user/uploads)</p>
           </div>
-          <div class="form-row">
+          <div class="form-group">
             <label for="vditoruploadsDir">Vditor上传目录</label>
             <input type="text" id="vditoruploadsDir" name="vditoruploadsDir" value="<%= config.upload.vditoruploadsDir %>" required>
             <p class="path-note">支持相对路径(./vditoruploads)或绝对路径(C:/vditoruploads 或 /home/user/vditoruploads)</p>
@@ -57,7 +57,7 @@
         <form id="syncForm" action="/admin/sync-files" method="post">
           <div class="sync-options">
             <div class="sync-option">
-              <div class="form-row">
+              <div class="form-group">
                 <label for="dbMissingFile">数据库中存在但文件不存在</label>
                 <select id="dbMissingFile" name="dbMissingFile">
                   <option value="keep" <%= config.fileSync.dbMissingFile === 'keep' ? 'selected' : '' %>>不做处理</option>
@@ -66,7 +66,7 @@
               </div>
             </div>
             <div class="sync-option">
-              <div class="form-row">
+              <div class="form-group">
                 <label for="fileMissingDb">文件存在但数据库中不存在</label>
                 <select id="fileMissingDb" name="fileMissingDb">
                   <option value="keep" <%= config.fileSync.fileMissingDb === 'keep' ? 'selected' : '' %>>不做处理</option>
@@ -75,30 +75,20 @@
                 </select>
               </div>
             </div>
-            <div class="sync-option" id="txtConvertContainer" style="display: none;">
-              <div class="form-row">
-                <div class="checkbox-row">
-                  <input type="checkbox" id="convertTxtToText" name="convertTxtToText" <%= config.fileSync.convertTxtToText ? 'checked' : '' %>>
-                  <label for="convertTxtToText">将.txt文档转为文本剪贴板</label>
-                </div>
-                <div class="input-with-unit" id="txtMaxSizeContainer" style="display: none;">
-                  <label for="txtMaxSize">体积小于</label>
-                  <input type="number" id="txtMaxSize" name="txtMaxSize" value="<%= config.fileSync.txtMaxSize %>" min="1">
-                  <span class="unit">KB</span>
-                </div>
+            <div class="sync-option" id="txtConvertContainer">
+              <div class="form-group checkbox-group">
+                <input type="checkbox" id="convertTxtToText" name="convertTxtToText" <%= config.fileSync.convertTxtToText ? 'checked' : '' %>>
+                <label for="convertTxtToText">将体积小于</label>
+                <input type="number" id="txtMaxSize" name="txtMaxSize" value="<%= config.fileSync.txtMaxSize %>" min="1">
+                <span>KB的.txt文档转为文本剪贴板</span>
               </div>
             </div>
-            <div class="sync-option" id="mdConvertContainer" style="display: none;">
-              <div class="form-row">
-                <div class="checkbox-row">
-                  <input type="checkbox" id="convertMdToMarkdown" name="convertMdToMarkdown" <%= config.fileSync.convertMdToMarkdown ? 'checked' : '' %>>
-                  <label for="convertMdToMarkdown">将.md文档转为Markdown剪贴板</label>
-                </div>
-                <div class="input-with-unit" id="mdMaxSizeContainer" style="display: none;">
-                  <label for="mdMaxSize">体积小于</label>
-                  <input type="number" id="mdMaxSize" name="mdMaxSize" value="<%= config.fileSync.mdMaxSize %>" min="1">
-                  <span class="unit">KB</span>
-                </div>
+            <div class="sync-option" id="mdConvertContainer">
+              <div class="form-group checkbox-group">
+                <input type="checkbox" id="convertMdToMarkdown" name="convertMdToMarkdown" <%= config.fileSync.convertMdToMarkdown ? 'checked' : '' %>>
+                <label for="convertMdToMarkdown">将体积小于</label>
+                <input type="number" id="mdMaxSize" name="mdMaxSize" value="<%= config.fileSync.mdMaxSize %>" min="1">
+                <span>的.md文档转为Markdown剪贴板</span>
               </div>
             </div>
           </div>
@@ -191,17 +181,11 @@
         });
       });
       
-      // 控制复选框和文件大小输入框的显示与隐藏
+      // 控制复选框容器的显示与隐藏
       function updateSizeInputVisibility() {
         const fileMissingDb = document.getElementById('fileMissingDb').value;
-        const convertTxtChecked = document.getElementById('convertTxtToText').checked;
-        const convertMdChecked = document.getElementById('convertMdToMarkdown').checked;
         const txtConvertContainer = document.getElementById('txtConvertContainer');
         const mdConvertContainer = document.getElementById('mdConvertContainer');
-        const txtMaxSizeContainer = document.getElementById('txtMaxSizeContainer');
-        const mdMaxSizeContainer = document.getElementById('mdMaxSizeContainer');
-        const txtMaxSizeInput = document.getElementById('txtMaxSize');
-        const mdMaxSizeInput = document.getElementById('mdMaxSize');
         
         // 控制复选框容器的显示与隐藏
         if (fileMissingDb === 'add') {
@@ -210,37 +194,11 @@
         } else {
           txtConvertContainer.style.display = 'none';
           mdConvertContainer.style.display = 'none';
-          // 当不显示复选框时，确保输入框也不显示且非必填
-          txtMaxSizeContainer.style.display = 'none';
-          txtMaxSizeInput.required = false;
-          mdMaxSizeContainer.style.display = 'none';
-          mdMaxSizeInput.required = false;
-          return; // 不需要继续执行后面的代码
-        }
-        
-        // 控制TXT文件大小输入框
-        if (fileMissingDb === 'add' && convertTxtChecked) {
-          txtMaxSizeContainer.style.display = 'flex';
-          txtMaxSizeInput.required = true;
-        } else {
-          txtMaxSizeContainer.style.display = 'none';
-          txtMaxSizeInput.required = false;
-        }
-        
-        // 控制MD文件大小输入框
-        if (fileMissingDb === 'add' && convertMdChecked) {
-          mdMaxSizeContainer.style.display = 'flex';
-          mdMaxSizeInput.required = true;
-        } else {
-          mdMaxSizeContainer.style.display = 'none';
-          mdMaxSizeInput.required = false;
         }
       }
       
       // 添加事件监听器
       document.getElementById('fileMissingDb').addEventListener('change', updateSizeInputVisibility);
-      document.getElementById('convertTxtToText').addEventListener('change', updateSizeInputVisibility);
-      document.getElementById('convertMdToMarkdown').addEventListener('change', updateSizeInputVisibility);
       
       // 页面加载时初始化显示状态
       updateSizeInputVisibility();

@@ -6,6 +6,32 @@ const fs = require('fs');
 const Database = require('better-sqlite3');
 const session = require('express-session');
 
+/**
+ * 将 UTC 日期格式化为 UTC+8 的 YYYY/MM/DD hh:mm:ss 格式
+ * @param {Date|string} date - 日期对象或日期字符串（应为 UTC 时间）
+ * @returns {string} 格式化后的 UTC+8 日期字符串
+ */
+function formatDateTime(date) {
+  if (!date) return '';
+  
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '';
+
+  // 将时间转为 UTC 时间戳，再加 8 小时（28800000 毫秒）
+  const utcTime = d.getTime();
+  const utcPlus8Time = utcTime + 8 * 60 * 60 * 1000;
+  const d8 = new Date(utcPlus8Time);
+
+  const year = d8.getFullYear();
+  const month = String(d8.getMonth() + 1).padStart(2, '0');
+  const day = String(d8.getDate()).padStart(2, '0');
+  const hours = String(d8.getHours()).padStart(2, '0');
+  const minutes = String(d8.getMinutes()).padStart(2, '0');
+  const seconds = String(d8.getSeconds()).padStart(2, '0');
+  
+  return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+}
+
 // 读取配置文件
 let config;
 try {
@@ -202,7 +228,8 @@ app.get('/', (req, res) => {
     const rows = db.prepare(`SELECT * FROM clipboard ORDER BY created_at DESC`).all();
     res.render('index', { 
       items: rows, 
-      authenticated: req.session.authenticated || false 
+      authenticated: req.session.authenticated || false,
+      formatDateTime: formatDateTime
     });
   } catch (err) {
     return res.status(500).send('数据库错误: ' + err.message);
@@ -294,12 +321,12 @@ app.get('/share/:id', (req, res) => {
   try {
     const row = db.prepare(`SELECT * FROM clipboard WHERE id = ?`).get(id);
     if (!row) {
-      return res.render('share', { item: null });
+      return res.render('share', { item: null, formatDateTime: formatDateTime });
     }
-    res.render('share', { item: row });
+    res.render('share', { item: row, formatDateTime: formatDateTime });
   } catch (err) {
     console.error('分享页面错误:', err.message);
-    return res.render('share', { item: null });
+    return res.render('share', { item: null, formatDateTime: formatDateTime });
   }
 });
 
@@ -603,7 +630,7 @@ app.post('/upload/vditor', (req, res) => {
 
 // 管理页面路由
 app.get('/admin', authMiddleware, (req, res) => {
-  res.render('admin', { config });
+  res.render('admin', { config, formatDateTime: formatDateTime });
 });
 
 // 更新密码
@@ -753,7 +780,7 @@ app.post('/admin/sync-files', authMiddleware, async (req, res) => {
             try {
               const content = fs.readFileSync(fullPath, 'utf8');
               db.prepare(`INSERT INTO clipboard (type, title, content, created_at) VALUES (?, ?, ?, ?)`)
-                .run('text', fileName, content, new Date(stats.birthtime).toISOString());
+                .run('text', fileName, content, formatDateTime(stats.birthtime));
               result.convertedTxtFiles++;
               // 将文件移动到 /deleted 目录
               const deletedFilePath = path.join(resolvedUploadDir, 'deleted', file);
@@ -770,7 +797,7 @@ app.post('/admin/sync-files', authMiddleware, async (req, res) => {
             try {
               const content = fs.readFileSync(fullPath, 'utf8');
               db.prepare(`INSERT INTO clipboard (type, title, content, created_at) VALUES (?, ?, ?, ?)`)
-                .run('markdown', fileName, content, new Date(stats.birthtime).toISOString());
+                .run('markdown', fileName, content, formatDateTime(stats.birthtime));
               result.convertedMdFiles++;
               // 将文件移动到 /deleted 目录
               const deletedFilePath = path.join(resolvedUploadDir, 'deleted', file);
@@ -785,7 +812,7 @@ app.post('/admin/sync-files', authMiddleware, async (req, res) => {
           // 其他文件类型直接添加到数据库
           else {
             db.prepare(`INSERT INTO clipboard (type, title, file_path, created_at) VALUES (?, ?, ?, ?)`)
-              .run('file', fileName, relativePath, new Date(stats.birthtime).toISOString());
+              .run('file', fileName, relativePath, formatDateTime(stats.birthtime));
             result.addedRecords++;
           }
         }

@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/node_modules/vditor/dist/index.css">
   <script src="/node_modules/vditor/dist/index.min.js"></script>
+  <script src="/js/utils.js"></script>
 </head>
 <body>
   <div class="container share-container">
@@ -26,7 +27,7 @@
                 <% if (item.type === 'file') { %>文件<% } %>
               </span>
               <h2 class="item-title"><%= item.title %></h2>
-              <span class="item-date"><%= new Date(item.created_at).toLocaleString() %></span>
+              <span class="item-date"><%= formatDateTime(item.created_at) %></span>
             </div>
             
             <div class="share-actions">
@@ -186,8 +187,8 @@
             let propertiesHTML = '<table>';
             propertiesHTML += `<tr><td>文件名</td><td>${fileInfo.name}</td></tr>`;
             propertiesHTML += `<tr><td>大小</td><td>${formatFileSize(fileInfo.size)}</td></tr>`;
-            propertiesHTML += `<tr><td>创建日期</td><td>${new Date(fileInfo.created).toLocaleString()}</td></tr>`;
-            propertiesHTML += `<tr><td>修改日期</td><td>${new Date(fileInfo.modified).toLocaleString()}</td></tr>`;
+            propertiesHTML += `<tr><td>创建日期</td><td>${formatDateTime(fileInfo.created)}</td></tr>`;
+            propertiesHTML += `<tr><td>修改日期</td><td>${formatDateTime(fileInfo.modified)}</td></tr>`;
             propertiesHTML += `<tr><td>类型</td><td>${fileInfo.type}</td></tr>`;
             propertiesHTML += '</table>';
             propertiesDiv.innerHTML = propertiesHTML;

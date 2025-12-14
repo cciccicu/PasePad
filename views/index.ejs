@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/node_modules/vditor/dist/index.css">
   <script src="/node_modules/vditor/dist/index.min.js"></script>
+  <script src="/js/utils.js"></script>
 </head>
 <body>
   <div class="container">
@@ -52,7 +53,7 @@
                     <% if (item.type === 'file') { %>文件<% } %>
                   </span>
                   <h3 class="item-title"><%= item.title %></h3>
-                  <span class="item-date"><%= new Date(item.created_at).toLocaleString() %></span>
+                  <span class="item-date"><%= formatDateTime(item.created_at) %></span>
                 </div>
                 
                 <div class="item-actions">
@@ -64,9 +65,11 @@
                     <button class="btn-delete" onclick="deleteItem('<%= item.id %>')">删除</button>
                     <% } %>
                   <% } else if (item.type === 'link') { %>
+                    <button class="btn-open" onclick="openLink('<%= item.id %>')">打开</button>
                     <button class="btn-copy" onclick="copyContent('<%= item.id %>')">复制</button>
                     <button class="btn-share" onclick="shareItem('<%= item.id %>')">分享</button>
                     <% if (authenticated) { %>
+                    <button class="btn-edit" onclick="editItem('<%= item.id %>')">编辑</button>
                     <button class="btn-delete" onclick="deleteItem('<%= item.id %>')">删除</button>
                     <% } %>
                   <% } else if (item.type === 'file') { %>
@@ -87,7 +90,7 @@
               <!-- 移动端操作菜单 -->
               <div class="mobile-action-menu" id="mobileMenu<%= item.id %>">
                 <!-- 日期信息显示在菜单顶部 -->
-                <div class="mobile-menu-date"><span class="menu-icon">🕒</span> <%= new Date(item.created_at).toLocaleString() %></div>
+                <div class="mobile-menu-date"><span class="menu-icon">🕒</span> <%= formatDateTime(item.created_at) %></div>
                 
                 <% if (item.type === 'markdown' || item.type === 'text') { %>
                   <button onclick="copyContent('<%= item.id %>')"><span class="menu-icon">📋</span> 复制</button>
@@ -97,9 +100,11 @@
                   <button onclick="deleteItem('<%= item.id %>')"><span class="menu-icon">🗑️</span> 删除</button>
                   <% } %>
                 <% } else if (item.type === 'link') { %>
+                  <button onclick="openLink('<%= item.id %>')"><span class="menu-icon">🔗</span> 打开</button>
                   <button onclick="copyContent('<%= item.id %>')"><span class="menu-icon">📋</span> 复制</button>
                   <button onclick="shareItem('<%= item.id %>')"><span class="menu-icon">🔗</span> 分享</button>
                   <% if (authenticated) { %>
+                  <button onclick="editItem('<%= item.id %>')"><span class="menu-icon">✏️</span> 编辑</button>
                   <button onclick="deleteItem('<%= item.id %>')"><span class="menu-icon">🗑️</span> 删除</button>
                   <% } %>
                 <% } else if (item.type === 'file') { %>
@@ -120,6 +125,12 @@
               <% } else if (item.type === 'text') { %>
                 <div class="item-preview text-preview" style="display: none;">
                   <pre><%= item.content %></pre>
+                </div>
+              <% } else if (item.type === 'link') { %>
+                <div class="item-preview link-preview" style="display: none;">
+                  <div class="link-info">
+                    <div class="link-url"></div>
+                  </div>
                 </div>
               <% } %>
             </div>
@@ -240,6 +251,10 @@
           <div class="form-group" id="edit-text-container" style="display: none;">
             <label for="edit-text">内容</label>
             <textarea id="edit-text" rows="10" required></textarea>
+          </div>
+          <div class="form-group" id="edit-link-container" style="display: none;">
+            <label for="edit-link">链接地址</label>
+            <input type="url" id="edit-link" placeholder="https://example.com" required>
           </div>
           <!-- 统一内容字段 -->
           <input type="hidden" id="edit-content" name="content">
@@ -536,50 +551,72 @@
           // 如果点击的是按钮，不执行预览操作
           if (e.target.tagName === 'BUTTON') return;
           
+          // 如果点击的是预览区域，不执行收起操作
+          if (e.target.closest('.item-preview')) return;
+          
           const id = this.dataset.id;
           const type = this.dataset.type;
           
-          if (type === 'markdown' || type === 'text') {
-            // 切换预览显示
-            const preview = this.querySelector('.item-preview');
-            if (preview.style.display === 'none') {
-              preview.style.display = 'block';
-              
-              // 如果是Markdown，渲染内容
-              if (type === 'markdown') {
-                fetch(`/item/${id}`)
-                  .then(response => response.json())
-                  .then(data => {
-                    const previewDiv = preview.querySelector('.vditor-preview');
-                    Vditor.preview(previewDiv, data.content, {
-                      cdn: '/node_modules/vditor',
-                      theme: 'light'
-                    });
-                  });
-              }
-            } else {
-              preview.style.display = 'none';
-            }
-          } else if (type === 'link') {
-            // 获取链接并跳转
-            fetch(`/item/${id}`)
-              .then(response => response.json())
-              .then(data => {
-                window.open(data.content, '_blank');
-              });
-          } else if (type === 'file') {
-            // 获取文件路径并下载
-            fetch(`/item/${id}`)
-              .then(response => response.json())
-              .then(data => {
-                if (data.file_path) {
-                  // 直接使用相对路径，服务器会处理下载
-                  window.location.href = data.file_path;
-                }
-              });
-          }
+          toggleItem(id);
         });
       });
+      
+      // 切换项目预览的通用函数
+      function toggleItem(itemId) {
+        const item = document.querySelector(`.clipboard-item[data-id="${itemId}"]`);
+        if (!item) return;
+        
+        const type = item.dataset.type;
+        
+        if (type === 'markdown' || type === 'text') {
+          // 切换预览显示
+          const preview = item.querySelector('.item-preview');
+          if (preview.style.display === 'none') {
+            preview.style.display = 'block';
+            
+            // 如果是Markdown，渲染内容
+            if (type === 'markdown') {
+              fetch(`/item/${itemId}`)
+                .then(response => response.json())
+                .then(data => {
+                  const previewDiv = preview.querySelector('.vditor-preview');
+                  Vditor.preview(previewDiv, data.content, {
+                    cdn: '/node_modules/vditor',
+                    theme: 'light'
+                  });
+                });
+            }
+          } else {
+            preview.style.display = 'none';
+          }
+        } else if (type === 'link') {
+          // 切换预览显示
+          const preview = item.querySelector('.item-preview');
+          if (preview.style.display === 'none') {
+            preview.style.display = 'block';
+            
+            // 获取链接信息
+            fetch(`/item/${itemId}`)
+              .then(response => response.json())
+              .then(data => {
+                const linkUrlDiv = preview.querySelector('.link-url');
+                linkUrlDiv.innerHTML = `<a href="${data.content}" target="_blank">${data.content}</a>`;
+              });
+          } else {
+            preview.style.display = 'none';
+          }
+        } else if (type === 'file') {
+          // 获取文件路径并下载
+          fetch(`/item/${itemId}`)
+            .then(response => response.json())
+            .then(data => {
+              if (data.file_path) {
+                // 直接使用相对路径，服务器会处理下载
+                window.location.href = data.file_path;
+              }
+            });
+        }
+      }
     });
     
     // 显示模态框
@@ -596,6 +633,20 @@
     function submitMarkdown() {
       document.getElementById('markdown-content').value = vditor.getValue();
       vditor.setValue('', true);
+    }
+    
+    // 打开链接
+    function openLink(id) {
+      fetch(`/item/${id}`)
+        .then(response => response.json())
+        .then(data => {
+          window.open(data.content, '_blank');
+        });
+    }
+    
+    // 从预览区域打开链接
+    function openLinkFromPreview(id) {
+      openLink(id);
     }
     
     // 复制内容
@@ -698,6 +749,7 @@
             // 显示Markdown编辑器
             document.getElementById('edit-markdown-container').style.display = 'block';
             document.getElementById('edit-text-container').style.display = 'none';
+            document.getElementById('edit-link-container').style.display = 'none';
             
             // 初始化编辑器
             if (!editVditor) {
@@ -729,7 +781,14 @@
             // 显示纯文本编辑器
             document.getElementById('edit-markdown-container').style.display = 'none';
             document.getElementById('edit-text-container').style.display = 'block';
+            document.getElementById('edit-link-container').style.display = 'none';
             document.getElementById('edit-text').value = data.content;
+          } else if (data.type === 'link') {
+            // 显示链接编辑器
+            document.getElementById('edit-markdown-container').style.display = 'none';
+            document.getElementById('edit-text-container').style.display = 'none';
+            document.getElementById('edit-link-container').style.display = 'block';
+            document.getElementById('edit-link').value = data.content;
           }
           
           // 显示编辑模态框
@@ -752,6 +811,11 @@
         const textContent = document.getElementById('edit-text').value;
         // 只设置统一的content字段
         document.getElementById('edit-content').value = textContent;
+      } else if (document.getElementById('edit-link-container').style.display !== 'none') {
+        // 链接编辑
+        const linkContent = document.getElementById('edit-link').value;
+        // 只设置统一的content字段
+        document.getElementById('edit-content').value = linkContent;
       }
       
       // 手动提交表单
@@ -790,8 +854,8 @@
                 let propertiesHTML = '<table>';
                 propertiesHTML += `<tr><td>文件名</td><td>${fileInfo.name}</td></tr>`;
                 propertiesHTML += `<tr><td>大小</td><td>${formatFileSize(fileInfo.size)}</td></tr>`;
-                propertiesHTML += `<tr><td>创建日期</td><td>${new Date(fileInfo.created).toLocaleString()}</td></tr>`;
-                propertiesHTML += `<tr><td>修改日期</td><td>${new Date(fileInfo.modified).toLocaleString()}</td></tr>`;
+                propertiesHTML += `<tr><td>创建日期</td><td>${formatDateTime(fileInfo.created)}</td></tr>`;
+            propertiesHTML += `<tr><td>修改日期</td><td>${formatDateTime(fileInfo.modified)}</td></tr>`;
                 propertiesHTML += `<tr><td>类型</td><td>${fileInfo.type}</td></tr>`;
                 propertiesHTML += '</table>';
                 propertiesDiv.innerHTML = propertiesHTML;

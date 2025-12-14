@@ -7,8 +7,8 @@
     "vditoruploadsDir": "./vditoruploads"
   },
   "fileSync": {
-    "dbMissingFile": "delete",
-    "fileMissingDb": "add",
+    "dbMissingFile": "keep",
+    "fileMissingDb": "keep",
     "convertTxtToText": true,
     "txtMaxSize": 1000,
     "convertMdToMarkdown": true,
