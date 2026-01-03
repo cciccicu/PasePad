@@ -35,7 +35,7 @@ function formatDateTime(date) {
 // 读取配置文件
 let config;
 try {
-  const configPath = path.join(__dirname, 'config.json');
+  const configPath = path.join('/mnt/data', 'config.json');
   if (fs.existsSync(configPath)) {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   } else {
@@ -43,8 +43,8 @@ try {
     config = {
       auth: { password: 'PasePad' },
       upload: {
-        uploadDir: './uploads',
-        vditoruploadsDir: './vditoruploads'
+        uploadDir: '/mnt/data/uploads',
+        vditoruploadsDir: '/mnt/data/vditoruploads'
       },
       fileSync: {
         dbMissingFile: 'keep',
@@ -192,7 +192,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // 初始化数据库
-const dbPath = path.join(__dirname, 'clipboard.db');
+const dbPath = path.join('/mnt/data', 'clipboard.db');
 let db;
 
 try {
@@ -645,7 +645,7 @@ app.post('/admin/update-password', authMiddleware, (req, res) => {
     config.auth.password = password;
     
     // 保存到配置文件
-    fs.writeFileSync(path.join(__dirname, 'config.json'), JSON.stringify(config, null, 2));
+    fs.writeFileSync(path.join('/mnt/data', 'config.json'), JSON.stringify(config, null, 2));
     
     res.json({ success: true });
   } catch (err) {
@@ -681,7 +681,7 @@ app.post('/admin/update-upload-dirs', authMiddleware, (req, res) => {
       config.upload.vditoruploadsDir = newVditorDir;
       
       // 保存到配置文件
-      fs.writeFileSync(path.join(__dirname, 'config.json'), JSON.stringify(config, null, 2));
+      fs.writeFileSync(path.join('/mnt/data', 'config.json'), JSON.stringify(config, null, 2));
       
       res.json({ success: true });
     } catch (err) {
@@ -725,7 +725,7 @@ app.post('/admin/sync-files', authMiddleware, async (req, res) => {
     config.fileSync.mdMaxSize = parseInt(mdMaxSize) || 1024;
     
     // 保存到配置文件
-    fs.writeFileSync(path.join(__dirname, 'config.json'), JSON.stringify(config, null, 2));
+    fs.writeFileSync(path.join('/mnt/data', 'config.json'), JSON.stringify(config, null, 2));
     
     // 同步结果统计
     const result = {
